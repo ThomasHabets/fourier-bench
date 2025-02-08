@@ -1,11 +1,11 @@
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use num::Complex;
+use rustfft::num_complex::Complex;
 use rand::distributions::Standard;
 use rand::Rng;
 
 macro_rules! create_bench {
     {
-        $name:ident, $type:ty, $fourier:path, $fftw:path, $fftw_type:path
+        $name:ident, $type:ty, $fftw:path, $fftw_type:path
     } => {
         fn $name(
             c: &mut Criterion,
@@ -22,27 +22,18 @@ macro_rules! create_bench {
                     .map(|(x, y)| Complex::new(x, y))
                     .collect::<Vec<_>>();
 
-                // Fourier
-                let fourier = $fourier(size);
-                group.bench_with_input(BenchmarkId::new("Fourier", size), &input, |b, i| {
-                    let mut input = Vec::new();
-                    input.extend_from_slice(i);
-                    let mut output = vec![Complex::default(); input.len()];
-                    let transform = if forward {
-                        fourier::Transform::Fft
-                    } else {
-                        fourier::Transform::Ifft
-                    };
-                    b.iter(|| fourier.transform(&input, &mut output, transform))
-                });
-
                 // RustFFT
-                let rustfft = rustfft::FFTplanner::<$type>::new(!forward).plan_fft(size);
+                let mut planner = rustfft::FftPlanner::new();
+                let rustfft = if forward {
+                    planner.plan_fft_forward(size)
+                } else {
+                    planner.plan_fft_inverse(size)
+                };
                 group.bench_with_input(BenchmarkId::new("RustFFT", size), &input, |b, i| {
-                    let mut input = Vec::new();
+                    let mut input = Vec::with_capacity(size);
                     input.extend_from_slice(i);
-                    let mut output = vec![Complex::default(); input.len()];
-                    b.iter(|| rustfft.process(input.as_mut(), output.as_mut()))
+                    //let mut output = vec![Complex::default(); input.len()];
+                    b.iter(|| rustfft.process(input.as_mut_slice()))
                 });
 
                 // FFTW
@@ -80,7 +71,7 @@ macro_rules! create_scenarios {
     } => {
         mod bench_f32 {
             use super::*;
-            create_bench! { bench, f32, fourier::create_fft_f32, fftw::plan::C2CPlan32::aligned, fftw::types::c32::new }
+            create_bench! { bench, f32, fftw::plan::C2CPlan32::aligned, fftw::types::c32::new }
             pub mod fft {
                 use super::*;
                 $(
@@ -110,7 +101,7 @@ macro_rules! create_scenarios {
         }
         mod bench_f64 {
             use super::*;
-            create_bench! { bench, f64, fourier::create_fft_f64, fftw::plan::C2CPlan64::aligned, fftw::types::c64::new }
+            create_bench! { bench, f64, fftw::plan::C2CPlan64::aligned, fftw::types::c64::new }
             pub mod fft {
                 use super::*;
                 $(
@@ -142,9 +133,9 @@ macro_rules! create_scenarios {
             benches,
             $(
             bench_f32::fft::$name,
-            bench_f32::ifft::$name,
+            //bench_f32::ifft::$name,
             bench_f64::fft::$name,
-            bench_f64::ifft::$name,
+            //bench_f64::ifft::$name,
             )*
         );
     }
@@ -152,10 +143,10 @@ macro_rules! create_scenarios {
 
 create_scenarios! {
     [pow2, "powers of two", &mut (8..11).map(|x| 2usize.pow(x))]
-    [pow3, "powers of three", &mut (5..8).map(|x| 3usize.pow(x))]
-    [pow5, "powers of five", &mut (3..6).map(|x| 5usize.pow(x))]
-    [composite, "composites of 2, 3, 5", &mut [222, 722, 1418].iter().map(|x| *x)]
-    [prime, "primes", &mut [191, 439, 1013].iter().map(|x| *x)]
+//    [pow3, "powers of three", &mut (5..8).map(|x| 3usize.pow(x))]
+ //   [pow5, "powers of five", &mut (3..6).map(|x| 5usize.pow(x))]
+//    [composite, "composites of 2, 3, 5", &mut [222, 722, 1418].iter().map(|x| *x)]
+ //   [prime, "primes", &mut [191, 439, 1013].iter().map(|x| *x)]
 }
 
 criterion_main!(benches);

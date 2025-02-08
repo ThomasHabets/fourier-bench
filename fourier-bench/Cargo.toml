@@ -2,16 +2,15 @@
 name = "fourier-bench"
 version = "0.1.0"
 authors = ["Caleb Zulawski <caleb.zulawski@gmail.com>"]
-edition = "2018"
+edition = "2021"
 publish = false
 
 [dev-dependencies]
 criterion = "0.3"
-fftw = { version = "0.6", default-features = false, features = ["system"] }
-fourier = { path = "../fourier" }
-num = "0.2"
+fftw = { version = "0.8", default-features = false, features = ["system"] }
+# fourier = { path = "../fourier" }
 rand = "0.7"
-rustfft = "3"
+rustfft = "6"
 
 [[bench]]
 name = "fft_bench"
